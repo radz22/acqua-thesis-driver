@@ -1,0 +1,65 @@
+---
+description: 
+alwaysApply: true
+---
+
+# Update Documentation on Code Changes
+
+After making code changes, check whether the following files need updating:
+
+## README.md
+
+Update when you add, remove, or rename:
+- Routes or API endpoints
+- Environment variables or prerequisites
+- Project structure (new files/directories)
+- Dependencies or setup steps
+- Available scripts in package.json
+
+## .env.example
+
+Update when you add, remove, or rename:
+- Environment variables in `constants/index.ts` or `types/env.d.ts`
+- Keep placeholder values descriptive
+- Never put real secrets in `.env.example`
+
+## Code Organization
+
+Components live under `components/` and are organized by domain module:
+
+- `components/ui/` — Generic, reusable UI primitives (buttons, inputs, modals, cards). Only truly cross-cutting components belong here.
+- `components/<domain>/` — Domain-specific components grouped by feature module. Each module owns all its components: layouts, guards, feature components, etc. Examples: `auth/` owns `auth-guard` and `auth-form-layout`; `app/` owns `app-screen-layout`.
+
+When adding a new feature:
+1. Create a new folder under `components/` named after the domain (e.g., `profile/`, `settings/`, `onboarding/`)
+2. Place all related components inside that folder
+3. Use `.native.tsx` suffix for platform-specific native variants (Metro auto-resolves)
+4. Only add to `ui/` if the component is generic and reusable across multiple domains
+
+Never place components directly in the `components/` root — always use a subfolder.
+
+## Tech Stack Documentation
+
+Before writing or modifying code, consult the official LLM-optimized docs for the tech stack used in this repo:
+
+- Expo: https://docs.expo.dev/llms.txt
+- better-auth: https://better-auth.com/llms.txt
+
+## Relevant Skills
+
+When working on this repo, use the following skills as applicable:
+
+- **building-native-ui** — for Expo Router screens, layouts, navigation, and animations
+- **expo-tailwind-setup** — for NativeWind v5 / Tailwind CSS v4 configuration
+- **native-data-fetching** — for fetch, React Query, SWR, error handling, and offline support
+- **vercel-react-native-skills** — for React Native and Expo performance best practices
+- **better-auth-best-practices** — for auth client config, session management, and plugins
+- **email-and-password-best-practices** — for password reset flows and credential auth with better-auth
+- **create-auth-skill** — for scaffolding authentication in new projects with better-auth
+
+## MCP Servers
+
+The following MCP servers are available and may be useful:
+
+- **user-Figma** — for referencing Figma designs during UI work
+- **cursor-ide-browser** — for testing web UI changes in the browser

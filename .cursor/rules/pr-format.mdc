@@ -1,0 +1,35 @@
+---
+description: Required pull request body format and pr-gate follow-up for all agents
+alwaysApply: true
+---
+
+# Pull request format (required)
+
+Whenever you **open or update a pull request in this repository** — including through `/poteto-mode` “Opening a PR”, **autopilot-stack**, **autopilot-full**, or **babysit** playbooks — the PR description must follow [.github/pull_request_template.md](.github/pull_request_template.md) **section for section**:
+
+1. **Finding** — what you found or what the PR delivers  
+2. **Repro** — steps to reproduce (bugs) or how to test the change  
+3. **Root cause** — why it happened or why this approach  
+4. **Fix** — what changed  
+5. **Before / After** — required when the PR touches UI (see template table); omit only when no UI-sensitive files changed  
+6. **Verdict** — verification and test results  
+
+Headings may use the template titles or the aliases enforced by the **PR gate** workflow (Summary/What, How to test, Changes, Verification, etc.). Each section must contain real content, not placeholders.
+
+## Branch naming
+
+Create branches as **`type/task-name`**: lowercase kebab-case after the slash, using one of `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, `ci`, `build`, or `hotfix` (for example `feat/add-login` or `fix/heart-refill-cost`). Do **not** use auto-generated names like `cursor/...` when you can choose the branch name. Exempt prefixes (`promote/`, `dependabot/`, `renovate/`) are enforced in CI but are not for agent-created feature work.
+
+## Visual proof in the PR body
+
+Before/after visuals must **render or link from the PR body**: markdown or HTML images, GitHub `user-attachments` URLs, video links, or `https://cursor.com/agents/<bc-id>/artifacts?path=...` links. **Never** put bare `/opt/...` or `/tmp/...` paths in the body — they do not count as proof.
+
+## After opening the PR
+
+1. Wait for the **PR gate** check to post or update its **sticky comment** on the PR.  
+2. Read that comment and **edit the PR body** until every required item is listed under **Present** and **Missing** shows none.  
+3. Do **not** report the PR as done to the user until the sticky comment shows no missing requirements (or you have fixed the body and re-triggered the check).
+
+## Shipped code
+
+Do not add **test-only feature flags** or **environment toggles** in shipped code. The PR gate’s blocking rollout is controlled only by `PR_GATE_BLOCKING` in `.github/workflows/pr-gate.yml`, not by repo env vars.

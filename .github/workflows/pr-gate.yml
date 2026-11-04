@@ -1,0 +1,479 @@
+# PR gate — warning-only body & proof check (stack-agnostic).
+# Rollout: set PR_GATE_BLOCKING to true in the github-script step below to fail the job on missing items.
+
+name: PR gate
+
+on:
+    pull_request:
+        types:
+            - opened
+            - edited
+            - synchronize
+            - reopened
+            - ready_for_review
+
+permissions:
+    contents: read
+    pull-requests: write
+
+jobs:
+    pr-gate:
+        name: PR body & proof
+        runs-on: ubuntu-latest
+        steps:
+            - name: Evaluate PR body and changed files
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      // --- Rollout: set to true to fail the job when requirements are missing ---
+                      const PR_GATE_BLOCKING = false
+
+                      const COMMENT_MARKER = '<!-- pr-gate-sticky -->'
+                      const BOT_LOGINS = new Set([
+                          'dependabot[bot]',
+                          'renovate[bot]',
+                          'renovate-bot',
+                      ])
+
+                      // UI-touch detection (extensions + path prefixes)
+                      const UI_FILE_PATTERNS = [
+                          /\.(tsx|jsx|vue|svelte|css|scss|sass|less|html|htm)$/i,
+                          /\.(png|jpg|jpeg|gif|webp|svg)$/i,
+                          /^app\//i,
+                          /^pages\//i,
+                          /^components\//i,
+                          /^screens\//i,
+                          /^styles\//i,
+                      ]
+
+                      const BRANCH_NAME_REGEX =
+                          /^(feat|fix|chore|docs|refactor|test|perf|ci|build|hotfix)\/[a-z0-9]+(-[a-z0-9]+)*$/
+                      const BRANCH_EXEMPT_PREFIXES = [
+                          'promote/',
+                          'dependabot/',
+                          'renovate/',
+                      ]
+
+                      function isBranchNameExempt(branchName) {
+                          return BRANCH_EXEMPT_PREFIXES.some((prefix) =>
+                              branchName.startsWith(prefix),
+                          )
+                      }
+
+                      function branchNameCheck(headRef) {
+                          if (isBranchNameExempt(headRef)) {
+                              return { ok: true }
+                          }
+                          if (BRANCH_NAME_REGEX.test(headRef)) {
+                              return { ok: true }
+                          }
+                          return {
+                              ok: false,
+                              missingLabel: `Branch name (use type/task-name, e.g. feat/add-login; got ${headRef})`,
+                          }
+                      }
+
+                      const REQUIRED_SECTIONS = [
+                          {
+                              id: 'finding',
+                              label: 'Finding (or Summary / What)',
+                              headingPatterns: [
+                                  /^finding\b/i,
+                                  /^summary\b/i,
+                                  /^what\b/i,
+                                  /what\s+changed/i,
+                              ],
+                          },
+                          {
+                              id: 'repro',
+                              label: 'Repro (or Steps to reproduce / How to test)',
+                              headingPatterns: [
+                                  /^repro\b/i,
+                                  /steps\s+to\s+repro/i,
+                                  /how\s+to\s+test/i,
+                              ],
+                          },
+                          {
+                              id: 'rootCause',
+                              label: 'Root cause (or Why)',
+                              headingPatterns: [
+                                  /root\s*cause/i,
+                                  /^why\b/i,
+                              ],
+                          },
+                          {
+                              id: 'fix',
+                              label: 'Fix (or Changes)',
+                              headingPatterns: [
+                                  /^fix\b/i,
+                                  /^changes\b/i,
+                              ],
+                          },
+                          {
+                              id: 'verdict',
+                              label: 'Verdict (or Verification / Test results)',
+                              headingPatterns: [
+                                  /^verdict\b/i,
+                                  /^verification\b/i,
+                                  /test\s+results/i,
+                              ],
+                          },
+                      ]
+
+                      function normalizeHeading(raw) {
+                          return raw
+                              .replace(/<!--[\s\S]*?-->/g, '')
+                              .trim()
+                              .replace(/^\*+|\*+$/g, '')
+                              .trim()
+                      }
+
+                      function parseMarkdownSections(body) {
+                          const sections = []
+                          const lines = body.split('\n')
+                          let current = null
+                          let contentLines = []
+
+                          const flush = () => {
+                              if (!current) return
+                              sections.push({
+                                  heading: current,
+                                  content: contentLines.join('\n'),
+                              })
+                          }
+
+                          for (const line of lines) {
+                              const m = line.match(/^(#{1,6})\s+(.+)$/)
+                              if (m) {
+                                  flush()
+                                  current = normalizeHeading(m[2])
+                                  contentLines = []
+                              } else if (current) {
+                                  contentLines.push(line)
+                              }
+                          }
+                          flush()
+                          return sections
+                      }
+
+                      function isPlaceholder(text) {
+                          const t = text
+                              .replace(/<!--[\s\S]*?-->/g, '')
+                              .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+                              .trim()
+                          if (!t) return true
+                          const collapsed = t.replace(/[-*_\s|]/g, '')
+                          if (!collapsed) return true
+                          const oneLine = t.replace(/\s+/g, ' ').trim()
+                          if (
+                              /^(n\/a|na|tbd|todo|none|wip|\.\.\.|—|--|-)$/i.test(
+                                  oneLine,
+                              )
+                          ) {
+                              return true
+                          }
+                          if (
+                              /fill\s+in|add\s+screenshot|placeholder/i.test(
+                                  oneLine,
+                              ) &&
+                              oneLine.length < 120
+                          ) {
+                              return true
+                          }
+                          return false
+                      }
+
+                      function headingMatches(heading, patterns) {
+                          const h = heading.trim()
+                          return patterns.some((re) => re.test(h))
+                      }
+
+                      function sectionStatus(body) {
+                          const parsed = parseMarkdownSections(body)
+                          const result = {}
+                          for (const req of REQUIRED_SECTIONS) {
+                              const match = parsed.find((s) =>
+                                  headingMatches(s.heading, req.headingPatterns),
+                              )
+                              const ok =
+                                  match !== undefined &&
+                                  !isPlaceholder(match.content)
+                              result[req.id] = { ok, label: req.label }
+                          }
+                          return result
+                      }
+
+                      function isBareLocalPath(url) {
+                          const u = url.trim()
+                          return (
+                              /^\/opt(\/|$)/.test(u) || /^\/tmp(\/|$)/.test(u)
+                          )
+                      }
+
+                      function hasVisualInText(text) {
+                          if (!text || !text.trim()) return false
+
+                          const mdImg = /!\[[^\]]*\]\(([^)]+)\)/g
+                          let m
+                          while ((m = mdImg.exec(text)) !== null) {
+                              const url = m[1].trim()
+                              if (url && !isBareLocalPath(url)) return true
+                          }
+
+                          const htmlImg =
+                              /<img\s[^>]*src\s*=\s*["']([^"']+)["']/gi
+                          while ((m = htmlImg.exec(text)) !== null) {
+                              const url = m[1].trim()
+                              if (url && !isBareLocalPath(url)) return true
+                          }
+
+                          if (
+                              /https:\/\/github\.com\/user-attachments\/assets\//i.test(
+                                  text,
+                              )
+                          ) {
+                              return true
+                          }
+
+                          if (
+                              /https:\/\/cursor\.com\/agents\/[^/\s]+\/artifacts/i.test(
+                                  text,
+                              )
+                          ) {
+                              return true
+                          }
+
+                          const urlLike =
+                              /https?:\/\/[^\s)>"']+/gi
+                          const videoExt = /\.(mp4|webm|mov)(\?|#|$)/i
+                          while ((m = urlLike.exec(text)) !== null) {
+                              const url = m[0]
+                              if (isBareLocalPath(url)) continue
+                              if (videoExt.test(url)) return true
+                              if (
+                                  /cursor\.com\/agents\/[^/]+\/artifacts/i.test(
+                                      url,
+                                  )
+                              ) {
+                                  return true
+                              }
+                          }
+
+                          return false
+                      }
+
+                      function extractBeforeAfterRegions(body) {
+                          const beforeParts = []
+                          const afterParts = []
+
+                          const parsed = parseMarkdownSections(body)
+                          for (const s of parsed) {
+                              if (/^before\b/i.test(s.heading)) {
+                                  beforeParts.push(s.content)
+                              }
+                              if (/^after\b/i.test(s.heading)) {
+                                  afterParts.push(s.content)
+                              }
+                          }
+
+                          const boldBefore =
+                              /\*\*before\*\*:?\s*([\s\S]*?)(?=\n\*\*after\*\*|\n##\s|$)/gi
+                          let bm
+                          while ((bm = boldBefore.exec(body)) !== null) {
+                              beforeParts.push(bm[1])
+                          }
+
+                          const boldAfter =
+                              /\*\*after\*\*:?\s*([\s\S]*?)(?=\n\*\*before\*\*|\n##\s|$)/gi
+                          while ((bm = boldAfter.exec(body)) !== null) {
+                              afterParts.push(bm[1])
+                          }
+
+                          const tableRowRe = /^\|([^|\n]+)\|([^|\n]+)\|/gm
+                          let row
+                          while ((row = tableRowRe.exec(body)) !== null) {
+                              const left = row[1].trim().toLowerCase()
+                              const right = row[2].trim()
+                              if (left === 'before') {
+                                  beforeParts.push(right)
+                              }
+                              if (left === 'after') {
+                                  afterParts.push(right)
+                              }
+                          }
+
+                          const headerMatch = body.match(
+                              /\|\s*before\s*\|\s*after\s*\|[\s\S]*?\n\|[-:\s|]+\|\n([\s\S]*?)(?=\n##\s|\n\n\n|$)/i,
+                          )
+                          if (headerMatch) {
+                              const rows = headerMatch[1].split('\n')
+                              for (const r of rows) {
+                                  const cells = r
+                                      .split('|')
+                                      .map((c) => c.trim())
+                                      .filter((c) => c.length > 0)
+                                  if (cells.length >= 2) {
+                                      beforeParts.push(cells[0])
+                                      afterParts.push(cells[1])
+                                  }
+                              }
+                          }
+
+                          return {
+                              beforeText: beforeParts.join('\n'),
+                              afterText: afterParts.join('\n'),
+                          }
+                      }
+
+                      function touchesUiFile(filename) {
+                          const f = filename.replace(/^\//, '')
+                          return UI_FILE_PATTERNS.some((re) => re.test(f))
+                      }
+
+                      const pr = context.payload.pull_request
+                      const author = pr.user.login
+
+                      if (BOT_LOGINS.has(author)) {
+                          core.info(
+                              `Skipping PR gate for bot author: ${author}`,
+                          )
+                          return
+                      }
+
+                      const body = pr.body || ''
+                      const isDraft = pr.draft === true
+
+                      const files = await github.paginate(
+                          github.rest.pulls.listFiles,
+                          {
+                              owner: context.repo.owner,
+                              repo: context.repo.repo,
+                              pull_number: pr.number,
+                              per_page: 100,
+                          },
+                      )
+
+                      const uiTouched = files.some((f) =>
+                          touchesUiFile(f.filename),
+                      )
+
+                      const sections = sectionStatus(body)
+                      const { beforeText, afterText } =
+                          extractBeforeAfterRegions(body)
+
+                      const beforeOk = hasVisualInText(beforeText)
+                      const afterOk = hasVisualInText(afterText)
+                      const visualsRequired = uiTouched
+                      const visualsOk =
+                          !visualsRequired || (beforeOk && afterOk)
+
+                      const missing = []
+                      const present = []
+
+                      for (const req of REQUIRED_SECTIONS) {
+                          const st = sections[req.id]
+                          if (st.ok) {
+                              present.push(st.label)
+                          } else {
+                              missing.push(st.label)
+                          }
+                      }
+
+                      if (visualsRequired) {
+                          if (beforeOk) present.push('Before visual')
+                          else missing.push('Before visual (UI files changed)')
+
+                          if (afterOk) present.push('After visual')
+                          else missing.push('After visual (UI files changed)')
+                      }
+
+                      const headRef = pr.head.ref
+                      const branchCheck = branchNameCheck(headRef)
+                      if (branchCheck.ok) {
+                          present.push('Branch name')
+                      } else {
+                          missing.push(branchCheck.missingLabel)
+                      }
+
+                      const uiFiles = files
+                          .filter((f) => touchesUiFile(f.filename))
+                          .map((f) => f.filename)
+                          .slice(0, 15)
+
+                      for (const label of missing) {
+                          core.warning(`PR gate: missing — ${label}`)
+                      }
+
+                      const draftBanner = isDraft
+                          ? '### Early feedback (draft PR)\n\nThis PR is still a draft; treat this as a checklist before marking ready for review.\n\n'
+                          : ''
+
+                      const presentLines =
+                          present.length > 0
+                              ? present.map((p) => `- ✅ ${p}`).join('\n')
+                              : '- _(none yet)_'
+
+                      const missingLines =
+                          missing.length > 0
+                              ? missing.map((m) => `- ⚠️ ${m}`).join('\n')
+                              : '- _(none — looks good)_'
+
+                      const uiNote = visualsRequired
+                          ? `\n\n**UI files in this PR** (${uiFiles.length}${files.filter((f) => touchesUiFile(f.filename)).length > 15 ? '+' : ''}): ${uiFiles.length ? uiFiles.map((f) => `\`${f}\``).join(', ') : '—'}\n\nBefore/after proof must use images, videos, \`user-attachments\` URLs, or \`cursor.com/agents/.../artifacts\` links (bare \`/opt\` or \`/tmp\` paths do not count).`
+                          : '\n\n_No UI-sensitive paths detected in changed files — before/after visuals not required._'
+
+                      const blockingNote = PR_GATE_BLOCKING
+                          ? '\n\n> **Blocking mode is ON** — this check will fail until all required items are present.'
+                          : '\n\n> Warning-only mode — the check passes but please fill gaps before merge.'
+
+                      const commentParts = [
+                          COMMENT_MARKER,
+                          ...(draftBanner ? [draftBanner.trimEnd()] : []),
+                          '## PR gate',
+                          '',
+                          `**Mode:** ${PR_GATE_BLOCKING ? 'blocking' : 'warning-only'}`,
+                          '',
+                          '### Present',
+                          presentLines,
+                          '',
+                          '### Missing',
+                          missingLines,
+                          uiNote,
+                          blockingNote,
+                          '',
+                          `_Updated ${new Date().toISOString()}_`,
+                      ]
+                      const commentBody = commentParts.join('\n')
+
+                      const { data: comments } =
+                          await github.rest.issues.listComments({
+                              owner: context.repo.owner,
+                              repo: context.repo.repo,
+                              issue_number: pr.number,
+                          })
+
+                      const existing = comments.find((c) =>
+                          c.body && c.body.includes(COMMENT_MARKER),
+                      )
+
+                      if (existing) {
+                          await github.rest.issues.updateComment({
+                              owner: context.repo.owner,
+                              repo: context.repo.repo,
+                              comment_id: existing.id,
+                              body: commentBody,
+                          })
+                      } else {
+                          await github.rest.issues.createComment({
+                              owner: context.repo.owner,
+                              repo: context.repo.repo,
+                              issue_number: pr.number,
+                              body: commentBody,
+                          })
+                      }
+
+                      if (PR_GATE_BLOCKING && missing.length > 0) {
+                          core.setFailed(
+                              `PR gate blocking: ${missing.length} requirement(s) missing`,
+                          )
+                      }

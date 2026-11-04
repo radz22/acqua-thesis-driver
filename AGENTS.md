@@ -1,0 +1,1 @@
+- Pull requests must follow `.cursor/rules/pr-format.mdc` and `.github/pull_request_template.md` (including pr-gate follow-up before you report the PR done).
