@@ -2,6 +2,22 @@
 @import "tailwindcss/preflight.css" layer(base);
 @import "tailwindcss/utilities.css";
 
+@theme {
+  --color-brand: #222222;
+  --color-accent: #7ef0ff;
+  --color-ink: #222222;
+  --color-ink-muted: #5c5c5c;
+  --color-line: #e5e5e5;
+  --color-danger: #b42318;
+  --color-hero: #1a1a1a;
+  --color-canvas: #f4f4f5;
+}
+
+::selection {
+  background: #7ef0ff;
+  color: #222222;
+}
+
 @media android {
   :root {
     --font-mono: monospace;

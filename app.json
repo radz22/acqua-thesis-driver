@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "Z0 Native App",
-    "slug": "z0-native-app",
+    "name": "AquaBest Driver",
+    "slug": "aquabest-driver",
     "version": "1.0.0",
-    "scheme": "z0app",
+    "scheme": "acquadriver",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#222222"
     },
     "ios": {
       "supportsTablet": true,

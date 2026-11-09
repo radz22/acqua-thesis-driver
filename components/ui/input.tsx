@@ -7,10 +7,13 @@ type InputProps = {
   placeholder?: string;
   value: string;
   onChangeText: (text: string) => void;
+  onBlur?: () => void;
   secureTextEntry?: boolean;
   autoCapitalize?: TextInputProps["autoCapitalize"];
   keyboardType?: TextInputProps["keyboardType"];
   error?: string;
+  autoComplete?: TextInputProps["autoComplete"];
+  textContentType?: TextInputProps["textContentType"];
 };
 
 export function Input({
@@ -18,35 +21,44 @@ export function Input({
   placeholder,
   value,
   onChangeText,
+  onBlur,
   secureTextEntry,
   autoCapitalize = "none",
   keyboardType,
   error,
+  autoComplete,
+  textContentType,
 }: InputProps) {
   const [isFocused, setIsFocused] = useState(false);
 
   const borderClasses = error
-    ? "border-red-500"
+    ? "border-danger"
     : isFocused
-      ? "border-neutral-900"
-      : "border-neutral-300";
+      ? "border-brand"
+      : "border-line";
 
   return (
     <View className="gap-1.5">
-      <Text className="text-sm font-medium text-neutral-700">{label}</Text>
+      <Text className="text-sm font-medium text-ink">{label}</Text>
       <TextInput
-        className={`w-full rounded-xl border bg-white px-4 py-3 text-base text-neutral-900 ${borderClasses}`}
+        className={`w-full min-h-12 rounded-2xl border bg-white px-4 py-3 text-base text-ink ${borderClasses}`}
         placeholder={placeholder}
-        placeholderTextColor="#a3a3a3"
+        placeholderTextColor="#8A8A8A"
         value={value}
         onChangeText={onChangeText}
         secureTextEntry={secureTextEntry}
         autoCapitalize={autoCapitalize}
         keyboardType={keyboardType}
+        autoComplete={autoComplete}
+        textContentType={textContentType}
+        selectionColor="#7EF0FF"
         onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
+        onBlur={() => {
+          setIsFocused(false);
+          onBlur?.();
+        }}
       />
-      {error ? <Text className="text-sm text-red-500">{error}</Text> : null}
+      {error ? <Text className="text-sm text-danger">{error}</Text> : null}
     </View>
   );
 }

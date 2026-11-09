@@ -17,31 +17,34 @@ export function Button({
 }: ButtonProps) {
   const isDisabled = disabled || isLoading;
 
-  const baseClasses = "w-full py-3.5 px-6 rounded-xl items-center justify-center flex-row gap-2";
+  const baseClasses =
+    "w-full min-h-12 py-3.5 px-6 rounded-2xl items-center justify-center flex-row gap-2";
   const variantClasses =
     variant === "primary"
       ? isDisabled
-        ? "bg-neutral-300"
-        : "bg-neutral-900 active:bg-neutral-700"
+        ? "bg-[#B3B3B3]"
+        : "bg-brand active:bg-black"
       : isDisabled
-        ? "bg-neutral-100 border border-neutral-200"
-        : "bg-white border border-neutral-300 active:bg-neutral-50";
+        ? "bg-canvas border border-line"
+        : "bg-white border border-line active:bg-canvas";
 
   const textClasses =
     variant === "primary"
       ? "text-white text-base font-semibold"
       : isDisabled
-        ? "text-neutral-400 text-base font-semibold"
-        : "text-neutral-900 text-base font-semibold";
+        ? "text-ink-muted/50 text-base font-semibold"
+        : "text-ink text-base font-semibold";
 
   return (
     <Pressable
       className={`${baseClasses} ${variantClasses}`}
       onPress={onPress}
       disabled={isDisabled}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: isDisabled, busy: isLoading }}
     >
       {isLoading ? (
-        <ActivityIndicator className={variant === "primary" ? "text-white" : "text-neutral-500"} />
+        <ActivityIndicator className={variant === "primary" ? "text-white" : "text-ink-muted"} />
       ) : (
         <Text className={textClasses}>{title}</Text>
       )}

@@ -16,4 +16,4 @@ if (!appRole) {
 
 export const API_URL = apiUrl;
 export const APP_ROLE = appRole;
-export const APP_SCHEME = "z0app";
+export const APP_SCHEME = "acquadriver";
