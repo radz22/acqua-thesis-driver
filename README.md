@@ -2,7 +2,7 @@
 
 A production-grade Expo app targeting iOS, Android, and Web with file-based routing, NativeWind styling, and better-auth authentication.
 
-## Tech Stack
+## Tech Stacks
 
 - **Framework**: [Expo](https://expo.dev) SDK 55 with [Expo Router](https://docs.expo.dev/router/introduction/) v5
 - **Styling**: [NativeWind](https://www.nativewind.dev) v5 (Tailwind CSS v4 for React Native)
