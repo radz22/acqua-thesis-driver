@@ -6,10 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AuthFormLayout } from "@/components/auth/auth-form-layout";
 import { authClient } from "@/lib/auth-client";
-import { authErrorMessage } from "@/lib/auth-errors";
+import { authErrorMessage, needsNewOtp } from "@/lib/auth-errors";
 import { resetPasswordSchema, type ResetPasswordValues } from "@/lib/auth-schemas";
 import { clearResetDraft, getResetDraft } from "@/lib/auth-flow";
 import { AUTH_HERO_OTP } from "@/constants/assets";
+import { toast } from "@/components/ui/toast";
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
@@ -17,8 +18,7 @@ export default function ResetPasswordScreen() {
   const {
     control,
     handleSubmit,
-    setError,
-    formState: { errors, isSubmitting },
+    formState: { isSubmitting },
   } = useForm<ResetPasswordValues>({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: { password: "", confirmPassword: "" },
@@ -26,7 +26,7 @@ export default function ResetPasswordScreen() {
 
   async function onSubmit({ password }: ResetPasswordValues) {
     if (!draft) {
-      setError("root", { message: "This reset session expired. Request a new code." });
+      toast.error("This reset session expired. Request a new code.");
       return;
     }
 
@@ -37,18 +37,21 @@ export default function ResetPasswordScreen() {
     });
 
     if (resetError) {
-      setError("root", {
-        message: authErrorMessage(resetError, "Could not update your password."),
-      });
+      const message = authErrorMessage(resetError, "Could not update your password.");
+      toast.error(message);
+      if (needsNewOtp(resetError)) {
+        clearResetDraft();
+        router.replace({
+          pathname: "/(auth)/forgot-password",
+        });
+      }
       return;
     }
 
     clearResetDraft();
+    toast.success("Password updated.");
     router.replace("/(auth)/password-updated");
   }
-
-  const formError =
-    errors.root?.message ?? (draft ? undefined : "This reset session expired. Request a new code.");
 
   return (
     <AuthFormLayout
@@ -91,12 +94,6 @@ export default function ResetPasswordScreen() {
             />
           )}
         />
-
-        {formError ? (
-          <View className="rounded-xl bg-red-50 px-4 py-3">
-            <Text className="text-sm text-danger">{formError}</Text>
-          </View>
-        ) : null}
 
         <Button
           title="Update password"

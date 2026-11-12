@@ -10,42 +10,54 @@ import { authClient, signIn } from "@/lib/auth-client";
 import { authErrorMessage, isEmailNotVerified } from "@/lib/auth-errors";
 import { loginSchema, type LoginValues } from "@/lib/auth-schemas";
 import { AUTH_HERO_LOGIN } from "@/constants/assets";
+import { toast } from "@/components/ui/toast";
 
 export default function LoginScreen() {
   const router = useRouter();
   const {
     control,
     handleSubmit,
-    setError,
-    formState: { errors, isSubmitting },
+    formState: { isSubmitting },
   } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "", rememberMe: true },
   });
 
   async function onSubmit({ email, password, rememberMe }: LoginValues) {
-    const { error: signInError } = await signIn.email({
-      email,
-      password,
-      rememberMe,
-    });
+    let signInError;
+    try {
+      ({ error: signInError } = await signIn.email({
+        email,
+        password,
+        rememberMe,
+      }));
+    } catch {
+      toast.error("Sign in failed. Try again.");
+      return;
+    }
 
     if (signInError) {
       if (isEmailNotVerified(signInError)) {
-        await authClient.emailOtp.sendVerificationOtp({
+        const { error: otpError } = await authClient.emailOtp.sendVerificationOtp({
           email,
           type: "email-verification",
         });
+        if (otpError) {
+          toast.error(authErrorMessage(otpError, "Could not send the verification code."));
+        } else {
+          toast.success("We sent a verification code to your email.");
+        }
         router.replace({
           pathname: "/(auth)/verify-email",
           params: { email, purpose: "email-verification" },
         });
         return;
       }
-      setError("root", { message: authErrorMessage(signInError, "Sign in failed. Try again.") });
+      toast.error(authErrorMessage(signInError, "Sign in failed. Try again."));
       return;
     }
 
+    toast.success("Signed in.");
     router.replace("/(app)");
   }
 
@@ -121,12 +133,6 @@ export default function LoginScreen() {
             <Text className="text-sm font-medium text-ink">Forgot password?</Text>
           </Pressable>
         </View>
-
-        {errors.root?.message ? (
-          <View className="rounded-xl bg-red-50 px-4 py-3">
-            <Text className="text-sm text-danger">{errors.root.message}</Text>
-          </View>
-        ) : null}
 
         <Button
           title="Let's Start"

@@ -17,10 +17,13 @@ export function authErrorMessage(error: AuthErrorLike | null | undefined, fallba
   if (haystack.includes("user_already_exists") || haystack.includes("already exists")) {
     return "An account with this email already exists.";
   }
+  if (haystack.includes("user_not_found") || haystack.includes("user not found")) {
+    return "No account found with this email.";
+  }
   if (haystack.includes("invalid_otp") || haystack.includes("invalid otp")) {
     return "That code is incorrect. Try again.";
   }
-  if (haystack.includes("otp_expired") || haystack.includes("expired")) {
+  if (haystack.includes("otp_expired") || haystack.includes("otp expired")) {
     return "That code has expired. Send a new one.";
   }
   if (haystack.includes("too_many_attempts")) {
@@ -41,4 +44,18 @@ export function isEmailNotVerified(error: AuthErrorLike | null | undefined) {
 export function isEmailTaken(error: AuthErrorLike | null | undefined) {
   const haystack = `${error?.code ?? ""} ${error?.message ?? ""}`.toLowerCase();
   return haystack.includes("user_already_exists") || haystack.includes("already exists");
+}
+
+export function isUserNotFound(error: AuthErrorLike | null | undefined) {
+  const haystack = `${error?.code ?? ""} ${error?.message ?? ""}`.toLowerCase();
+  return haystack.includes("user_not_found") || haystack.includes("user not found");
+}
+
+export function needsNewOtp(error: AuthErrorLike | null | undefined) {
+  const haystack = `${error?.code ?? ""} ${error?.message ?? ""}`.toLowerCase();
+  return (
+    haystack.includes("otp_expired") ||
+    haystack.includes("otp expired") ||
+    haystack.includes("too_many_attempts")
+  );
 }

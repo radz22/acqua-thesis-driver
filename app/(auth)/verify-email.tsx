@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { OtpInput } from "@/components/ui/otp-input";
 import { AuthFormLayout } from "@/components/auth/auth-form-layout";
 import { authClient } from "@/lib/auth-client";
-import { authErrorMessage } from "@/lib/auth-errors";
+import { authErrorMessage, needsNewOtp } from "@/lib/auth-errors";
 import { otpSchema, type OtpValues } from "@/lib/auth-schemas";
 import { setResetDraft, type OtpPurpose } from "@/lib/auth-flow";
 import { AUTH_HERO_OTP } from "@/constants/assets";
+import { toast } from "@/components/ui/toast";
 
 const RESEND_SECONDS = 60;
 
@@ -29,14 +30,13 @@ export default function VerifyEmailScreen() {
     setError,
     clearErrors,
     watch,
-    formState: { errors, isSubmitting },
+    formState: { isSubmitting },
   } = useForm<OtpValues>({
     resolver: zodResolver(otpSchema),
     defaultValues: { otp: "" },
   });
 
   const otp = watch("otp");
-  const formError = errors.otp?.message ?? errors.root?.message;
   const isBusy = isSubmitting || isResending;
 
   useEffect(() => {
@@ -47,7 +47,29 @@ export default function VerifyEmailScreen() {
 
   async function onSubmit({ otp: code }: OtpValues) {
     if (!email) {
-      setError("root", { message: "Missing email. Go back and try again." });
+      toast.error("Missing email. Go back and try again.");
+      return;
+    }
+
+    const { error: verifyError } =
+      purpose === "forget-password"
+        ? await authClient.emailOtp.checkVerificationOtp({
+            email,
+            otp: code,
+            type: "forget-password",
+          })
+        : await authClient.emailOtp.verifyEmail({
+            email,
+            otp: code,
+          });
+
+    if (verifyError) {
+      const message = authErrorMessage(verifyError, "Could not verify that code.");
+      toast.error(message);
+      setError("otp", { message });
+      if (needsNewOtp(verifyError)) {
+        setSecondsLeft(0);
+      }
       return;
     }
 
@@ -57,16 +79,7 @@ export default function VerifyEmailScreen() {
       return;
     }
 
-    const { error: verifyError } = await authClient.emailOtp.verifyEmail({
-      email,
-      otp: code,
-    });
-
-    if (verifyError) {
-      setError("otp", { message: authErrorMessage(verifyError, "Could not verify that code.") });
-      return;
-    }
-
+    toast.success("Email verified.");
     router.replace("/(app)");
   }
 
@@ -86,10 +99,11 @@ export default function VerifyEmailScreen() {
     setIsResending(false);
 
     if (resendError) {
-      setError("root", { message: authErrorMessage(resendError, "Could not resend the code.") });
+      toast.error(authErrorMessage(resendError, "Could not resend the code."));
       return;
     }
 
+    toast.success("A new code is on the way.");
     setSecondsLeft(RESEND_SECONDS);
   }
 
@@ -111,19 +125,23 @@ export default function VerifyEmailScreen() {
           control={control}
           name="otp"
           render={({ field, fieldState }) => (
-            <OtpInput
-              value={field.value}
-              onChange={field.onChange}
-              error={Boolean(fieldState.error || errors.root)}
-            />
+            <View className="gap-2">
+              <OtpInput
+                value={field.value}
+                onChange={(value) => {
+                  field.onChange(value);
+                  if (fieldState.error) {
+                    clearErrors("otp");
+                  }
+                }}
+                error={Boolean(fieldState.error)}
+              />
+              {fieldState.error?.message ? (
+                <Text className="text-center text-sm text-danger">{fieldState.error.message}</Text>
+              ) : null}
+            </View>
           )}
         />
-
-        {formError ? (
-          <View className="rounded-xl bg-red-50 px-4 py-3">
-            <Text className="text-sm text-danger">{formError}</Text>
-          </View>
-        ) : null}
 
         <Pressable
           className="min-h-11 items-center justify-center"

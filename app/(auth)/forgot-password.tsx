@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AuthFormLayout } from "@/components/auth/auth-form-layout";
 import { authClient } from "@/lib/auth-client";
-import { authErrorMessage } from "@/lib/auth-errors";
+import { authErrorMessage, isUserNotFound } from "@/lib/auth-errors";
 import { forgotPasswordSchema, type ForgotPasswordValues } from "@/lib/auth-schemas";
 import { AUTH_HERO_OTP } from "@/constants/assets";
+import { toast } from "@/components/ui/toast";
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -16,7 +17,7 @@ export default function ForgotPasswordScreen() {
     control,
     handleSubmit,
     setError,
-    formState: { errors, isSubmitting },
+    formState: { isSubmitting },
   } = useForm<ForgotPasswordValues>({
     resolver: zodResolver(forgotPasswordSchema),
     defaultValues: { email: "" },
@@ -28,12 +29,15 @@ export default function ForgotPasswordScreen() {
     });
 
     if (resetError) {
-      setError("root", {
-        message: authErrorMessage(resetError, "Could not send a reset code. Try again."),
-      });
+      const message = authErrorMessage(resetError, "Could not send a reset code. Try again.");
+      toast.error(message);
+      if (isUserNotFound(resetError)) {
+        setError("email", { message });
+      }
       return;
     }
 
+    toast.success("We sent a reset code to your email.");
     router.replace({
       pathname: "/(auth)/verify-email",
       params: { email, purpose: "forget-password" },
@@ -64,12 +68,6 @@ export default function ForgotPasswordScreen() {
             />
           )}
         />
-
-        {errors.root?.message ? (
-          <View className="rounded-xl bg-red-50 px-4 py-3">
-            <Text className="text-sm text-danger">{errors.root.message}</Text>
-          </View>
-        ) : null}
 
         <Button title="Send code" onPress={handleSubmit(onSubmit)} isLoading={isSubmitting} />
 
