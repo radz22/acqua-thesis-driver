@@ -1,123 +1,115 @@
-import { useState } from "react";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter } from "expo-router";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { View, Text, Pressable } from "@/src/tw";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AuthFormLayout } from "@/components/auth/auth-form-layout";
 import { authClient } from "@/lib/auth-client";
+import { authErrorMessage, needsNewOtp } from "@/lib/auth-errors";
+import { resetPasswordSchema, type ResetPasswordValues } from "@/lib/auth-schemas";
+import { clearResetDraft, getResetDraft } from "@/lib/auth-flow";
+import { AUTH_HERO_OTP } from "@/constants/assets";
+import { toast } from "@/components/ui/toast";
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
-  const { token, error: tokenError } = useLocalSearchParams<{
-    token?: string;
-    error?: string;
-  }>();
+  const draft = getResetDraft();
+  const {
+    control,
+    handleSubmit,
+    formState: { isSubmitting },
+  } = useForm<ResetPasswordValues>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: { password: "", confirmPassword: "" },
+  });
 
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState(tokenError === "INVALID_TOKEN" ? "This reset link is invalid or has expired." : "");
-  const [success, setSuccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-
-  async function handleResetPassword() {
-    setError("");
-
-    if (!token) {
-      setError("Missing reset token. Please request a new reset link.");
+  async function onSubmit({ password }: ResetPasswordValues) {
+    if (!draft) {
+      toast.error("This reset session expired. Request a new code.");
       return;
     }
 
-    if (newPassword !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
-    }
-
-    setIsLoading(true);
-
-    const { error: resetError } = await authClient.resetPassword({
-      newPassword,
-      token,
+    const { error: resetError } = await authClient.emailOtp.resetPassword({
+      email: draft.email,
+      otp: draft.otp,
+      password,
     });
 
-    setIsLoading(false);
-
     if (resetError) {
-      setError(resetError.message ?? "Failed to reset password. Please try again.");
+      const message = authErrorMessage(resetError, "Could not update your password.");
+      toast.error(message);
+      if (needsNewOtp(resetError)) {
+        clearResetDraft();
+        router.replace({
+          pathname: "/(auth)/forgot-password",
+        });
+      }
       return;
     }
 
-    setSuccess(true);
-  }
-
-  if (success) {
-    return (
-      <AuthFormLayout>
-        <View className="gap-6">
-          <View className="gap-2">
-            <Text className="text-3xl font-bold text-neutral-900">Password reset</Text>
-            <Text className="text-base text-neutral-500">
-              Your password has been successfully reset. You can now sign in with your new
-              password.
-            </Text>
-          </View>
-
-          <Button title="Sign In" onPress={() => router.replace("/(auth)/login")} />
-        </View>
-      </AuthFormLayout>
-    );
+    clearResetDraft();
+    toast.success("Password updated.");
+    router.replace("/(auth)/password-updated");
   }
 
   return (
-    <AuthFormLayout>
-      <View className="gap-8">
-        <View className="gap-2">
-          <Text className="text-3xl font-bold text-neutral-900">Reset password</Text>
-          <Text className="text-base text-neutral-500">Enter your new password below.</Text>
-        </View>
+    <AuthFormLayout
+      hero={AUTH_HERO_OTP}
+      title="Set a new password"
+      subtitle="Choose a password you have not used on AquaBest before"
+    >
+      <View className="gap-5">
+        <Controller
+          control={control}
+          name="password"
+          render={({ field, fieldState }) => (
+            <Input
+              label="New password"
+              placeholder="Enter new password"
+              value={field.value}
+              onChangeText={field.onChange}
+              onBlur={field.onBlur}
+              secureTextEntry
+              autoComplete="new-password"
+              textContentType="newPassword"
+              error={fieldState.error?.message}
+            />
+          )}
+        />
+        <Controller
+          control={control}
+          name="confirmPassword"
+          render={({ field, fieldState }) => (
+            <Input
+              label="Confirm password"
+              placeholder="Confirm new password"
+              value={field.value}
+              onChangeText={field.onChange}
+              onBlur={field.onBlur}
+              secureTextEntry
+              autoComplete="new-password"
+              textContentType="newPassword"
+              error={fieldState.error?.message}
+            />
+          )}
+        />
 
-        <View className="gap-4">
-          <Input
-            label="New Password"
-            placeholder="Enter new password"
-            value={newPassword}
-            onChangeText={setNewPassword}
-            secureTextEntry
-          />
-          <Input
-            label="Confirm Password"
-            placeholder="Confirm new password"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-          />
-        </View>
+        <Button
+          title="Update password"
+          onPress={handleSubmit(onSubmit)}
+          isLoading={isSubmitting}
+          disabled={!draft}
+        />
 
-        {error ? (
-          <View className="rounded-lg bg-red-50 px-4 py-3">
-            <Text className="text-sm text-red-600">{error}</Text>
-          </View>
-        ) : null}
-
-        <View className="gap-3">
-          <Button
-            title="Reset Password"
-            onPress={handleResetPassword}
-            isLoading={isLoading}
-            disabled={!token}
-          />
-
-          <Pressable onPress={() => router.replace("/(auth)/login")}>
-            <Text className="text-center text-sm text-neutral-500">
-              Back to{" "}
-              <Text className="font-semibold text-neutral-900">Sign In</Text>
-            </Text>
-          </Pressable>
-        </View>
+        <Pressable
+          className="min-h-11 justify-center"
+          onPress={() => router.replace("/(auth)/login")}
+        >
+          <Text className="text-center text-sm text-ink-muted">
+            Back to <Text className="font-semibold text-ink">Sign in</Text>
+          </Text>
+        </Pressable>
       </View>
     </AuthFormLayout>
   );

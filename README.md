@@ -210,7 +210,7 @@ Before submitting, update `EXPO_PUBLIC_API_URL` in the `production` profile of `
 | `pnpm build:web` | Export static web build to `dist/` |
 | `pnpm lint` | Run ESLint |
 | `pnpm format` | Format code with Prettier |
-
+| `pnpm start -- --go` |  Start the Expo development server in Expo Go |
 ## License
 
 MIT

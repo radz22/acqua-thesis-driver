@@ -4,19 +4,25 @@ import { Button } from "@/components/ui/button";
 import { AppScreenLayout } from "@/components/app/app-screen-layout";
 import { useAppSession } from "@/hooks/use-session";
 import { signOut } from "@/lib/auth-client";
+import { toast } from "@/components/ui/toast";
 
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAppSession();
 
   async function handleSignOut() {
-    await signOut({
+    const { error } = await signOut({
       fetchOptions: {
         onSuccess: () => {
+          toast.success("Signed out.");
           router.replace("/(auth)/login");
         },
       },
     });
+
+    if (error) {
+      toast.error("Could not sign out. Try again.");
+    }
   }
 
   return (

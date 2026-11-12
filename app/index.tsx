@@ -4,22 +4,34 @@ import { useAppSession } from "@/hooks/use-session";
 import { View, ActivityIndicator } from "@/src/tw";
 
 export default function IndexRedirect() {
-  const { isAuthenticated, isLoading } = useAppSession();
+  const { isAuthenticated, isLoading, emailVerified, user } = useAppSession();
   const router = useRouter();
 
   useEffect(() => {
     if (isLoading) return;
 
+    if (isAuthenticated && !emailVerified) {
+      router.replace({
+        pathname: "/(auth)/verify-email",
+        params: {
+          email: user?.email ?? "",
+          purpose: "email-verification",
+        },
+      });
+      return;
+    }
+
     if (isAuthenticated) {
       router.replace("/(app)");
-    } else {
-      router.replace("/(auth)/login");
+      return;
     }
-  }, [isLoading, isAuthenticated, router]);
+
+    router.replace("/(auth)/login");
+  }, [isLoading, isAuthenticated, emailVerified, user?.email, router]);
 
   return (
     <View className="flex-1 items-center justify-center bg-white">
-      <ActivityIndicator className="text-neutral-500" />
+      <ActivityIndicator className="text-ink-muted" />
     </View>
   );
 }

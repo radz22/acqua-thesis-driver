@@ -1,99 +1,81 @@
-import { useState } from "react";
 import { useRouter } from "expo-router";
-import * as Linking from "expo-linking";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { View, Text, Pressable } from "@/src/tw";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AuthFormLayout } from "@/components/auth/auth-form-layout";
 import { authClient } from "@/lib/auth-client";
+import { authErrorMessage, isUserNotFound } from "@/lib/auth-errors";
+import { forgotPasswordSchema, type ForgotPasswordValues } from "@/lib/auth-schemas";
+import { AUTH_HERO_OTP } from "@/constants/assets";
+import { toast } from "@/components/ui/toast";
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const {
+    control,
+    handleSubmit,
+    setError,
+    formState: { isSubmitting },
+  } = useForm<ForgotPasswordValues>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: { email: "" },
+  });
 
-  async function handleRequestReset() {
-    setError("");
-    setIsLoading(true);
-
-    const redirectTo = Linking.createURL("/(auth)/reset-password");
-
-    const { error: resetError } = await authClient.requestPasswordReset({
+  async function onSubmit({ email }: ForgotPasswordValues) {
+    const { error: resetError } = await authClient.emailOtp.requestPasswordReset({
       email,
-      redirectTo,
     });
 
-    setIsLoading(false);
-
     if (resetError) {
-      setError(resetError.message ?? "Failed to send reset email. Please try again.");
+      const message = authErrorMessage(resetError, "Could not send a reset code. Try again.");
+      toast.error(message);
+      if (isUserNotFound(resetError)) {
+        setError("email", { message });
+      }
       return;
     }
 
-    setSuccess(true);
-  }
-
-  if (success) {
-    return (
-      <AuthFormLayout>
-        <View className="gap-6">
-          <View className="gap-2">
-            <Text className="text-3xl font-bold text-neutral-900">Check your email</Text>
-            <Text className="text-base text-neutral-500">
-              We sent a password reset link to {email}. Click the link in the email to reset
-              your password.
-            </Text>
-          </View>
-
-          <Pressable onPress={() => router.replace("/(auth)/login")}>
-            <Text className="text-center text-sm font-semibold text-neutral-900">
-              Back to Sign In
-            </Text>
-          </Pressable>
-        </View>
-      </AuthFormLayout>
-    );
+    toast.success("We sent a reset code to your email.");
+    router.replace({
+      pathname: "/(auth)/verify-email",
+      params: { email, purpose: "forget-password" },
+    });
   }
 
   return (
-    <AuthFormLayout>
-      <View className="gap-8">
-        <View className="gap-2">
-          <Text className="text-3xl font-bold text-neutral-900">Forgot password?</Text>
-          <Text className="text-base text-neutral-500">
-            Enter your email address and we&apos;ll send you a link to reset your password.
+    <AuthFormLayout
+      hero={AUTH_HERO_OTP}
+      title="Forgot password?"
+      subtitle="We'll send a 6-digit reset code to this email"
+    >
+      <View className="gap-5">
+        <Controller
+          control={control}
+          name="email"
+          render={({ field, fieldState }) => (
+            <Input
+              label="Email address"
+              placeholder="you@example.com"
+              value={field.value}
+              onChangeText={field.onChange}
+              onBlur={field.onBlur}
+              keyboardType="email-address"
+              autoComplete="email"
+              textContentType="emailAddress"
+              error={fieldState.error?.message}
+            />
+          )}
+        />
+
+        <Button title="Send code" onPress={handleSubmit(onSubmit)} isLoading={isSubmitting} />
+
+        <Pressable className="min-h-11 justify-center" onPress={() => router.back()}>
+          <Text className="text-center text-sm text-ink-muted">
+            Remember your password? <Text className="font-semibold text-ink">Sign in</Text>
           </Text>
-        </View>
-
-        <View className="gap-4">
-          <Input
-            label="Email"
-            placeholder="you@example.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-        </View>
-
-        {error ? (
-          <View className="rounded-lg bg-red-50 px-4 py-3">
-            <Text className="text-sm text-red-600">{error}</Text>
-          </View>
-        ) : null}
-
-        <View className="gap-3">
-          <Button title="Send Reset Link" onPress={handleRequestReset} isLoading={isLoading} />
-
-          <Pressable onPress={() => router.back()}>
-            <Text className="text-center text-sm text-neutral-500">
-              Remember your password?{" "}
-              <Text className="font-semibold text-neutral-900">Sign In</Text>
-            </Text>
-          </Pressable>
-        </View>
+        </Pressable>
       </View>
     </AuthFormLayout>
   );
