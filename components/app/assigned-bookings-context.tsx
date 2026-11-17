@@ -19,6 +19,7 @@ type AssignedBookingsValue = {
   bookings: Booking[];
   status: LoadStatus;
   reload: () => Promise<void>;
+  applyBooking: (booking: Booking) => void;
 };
 
 const AssignedBookingsContext = createContext<AssignedBookingsValue | null>(null);
@@ -71,6 +72,9 @@ export function AssignedBookingsProvider({ children }: { children: ReactNode }) 
       setBookings((current) => upsertBooking(current, booking));
       setStatus("ready");
     });
+    socket.on("booking.updated", (booking: Booking) => {
+      setBookings((current) => upsertBooking(current, booking));
+    });
     socket.on("booking.unassigned", (payload: { id: string }) => {
       setBookings((current) => current.filter((booking) => booking.id !== payload.id));
     });
@@ -99,9 +103,13 @@ export function AssignedBookingsProvider({ children }: { children: ReactNode }) 
     };
   }, [isAuthenticated, reload]);
 
+  const applyBooking = useCallback((booking: Booking) => {
+    setBookings((current) => upsertBooking(current, booking));
+  }, []);
+
   const value = useMemo(
-    () => ({ bookings, status, reload }),
-    [bookings, status, reload],
+    () => ({ bookings, status, reload, applyBooking }),
+    [bookings, status, reload, applyBooking],
   );
 
   return (

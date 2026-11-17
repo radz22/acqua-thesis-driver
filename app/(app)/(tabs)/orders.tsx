@@ -8,6 +8,7 @@ import { type BookingStatus } from "@/lib/bookings";
 
 const STATUS_ORDER: BookingStatus[] = [
   "READY_TO_DELIVER",
+  "COMPLETED",
   "CONFIRMED",
   "PENDING",
   "CANCELLED",

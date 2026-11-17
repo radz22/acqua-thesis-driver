@@ -17,6 +17,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         ...config.ios?.infoPlist,
         NSLocationWhenInUseUsageDescription:
           "AquaBest Driver uses your location to navigate to delivery addresses.",
+        NSCameraUsageDescription:
+          "AquaBest Driver uses the camera to photograph the delivered water gallons.",
       },
     },
     android: {
@@ -35,6 +37,13 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         {
           locationWhenInUsePermission:
             "AquaBest Driver uses your location to navigate to delivery addresses.",
+        },
+      ],
+      [
+        "expo-image-picker",
+        {
+          cameraPermission:
+            "AquaBest Driver uses the camera to photograph the delivered water gallons.",
         },
       ],
       [

@@ -4,7 +4,9 @@ import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Pressable, ScrollView, Text, View } from "@/src/tw";
 import { Button } from "@/components/ui/button";
+import { CompleteOrderPanel } from "@/components/app/complete-order-panel";
 import { DeliveryMap } from "@/components/app/delivery-map";
+import { DeliveryProof } from "@/components/app/delivery-proof";
 import { useAssignedBookings } from "@/components/app/assigned-bookings-context";
 import {
   BOOKING_STATUS_LABEL,
@@ -21,7 +23,7 @@ export default function OrderDetailsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
   const id = typeof params.id === "string" ? params.id : "";
-  const { bookings } = useAssignedBookings();
+  const { bookings, applyBooking } = useAssignedBookings();
   const cached = bookings.find((booking) => booking.id === id);
   const [booking, setBooking] = useState<Booking | null>(cached ?? null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
@@ -47,6 +49,14 @@ export default function OrderDetailsScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!cached) return;
+    setBooking((current) => {
+      if (!current) return cached;
+      return Date.parse(cached.updatedAt) >= Date.parse(current.updatedAt) ? cached : current;
+    });
+  }, [cached]);
 
   useEffect(() => {
     if (!booking) return;
@@ -117,6 +127,18 @@ export default function OrderDetailsScreen() {
             }}
           />
         </View>
+        {booking.status === "READY_TO_DELIVER" ? (
+          <CompleteOrderPanel
+            booking={booking}
+            onCompleted={(completed) => {
+              setBooking(completed);
+              applyBooking(completed);
+            }}
+          />
+        ) : null}
+        {booking.status === "COMPLETED" ? (
+          <DeliveryProof imageUrl={booking.deliveryImageUrl} completedAt={booking.completedAt} />
+        ) : null}
         <View style={{ height: insets.bottom }} />
       </ScrollView>
     </View>

@@ -12,6 +12,7 @@ export function AssignedOrderCard({
 }) {
   const gallonLabel = booking.gallons === 1 ? "gallon" : "gallons";
   const isReady = booking.status === "READY_TO_DELIVER";
+  const isCompleted = booking.status === "COMPLETED";
 
   return (
     <Pressable
@@ -27,8 +28,10 @@ export function AssignedOrderCard({
             {booking.gallons} {gallonLabel}
           </Text>
         </View>
-        <View className={`rounded-full px-2.5 py-1 ${isReady ? "bg-accent" : "bg-line"}`}>
-          <Text className={`text-xs font-semibold ${isReady ? "text-white" : "text-ink"}`}>
+        <View
+          className={`rounded-full px-2.5 py-1 ${isReady || isCompleted ? "bg-accent" : "bg-line"}`}
+        >
+          <Text className={`text-xs font-semibold ${isReady || isCompleted ? "text-white" : "text-ink"}`}>
             {BOOKING_STATUS_LABEL[booking.status]}
           </Text>
         </View>

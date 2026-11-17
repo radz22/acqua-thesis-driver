@@ -1,7 +1,12 @@
 import { API_URL } from "@/constants";
 import { authClient } from "@/lib/auth-client";
 
-export type BookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "READY_TO_DELIVER";
+export type BookingStatus =
+  | "PENDING"
+  | "CONFIRMED"
+  | "CANCELLED"
+  | "READY_TO_DELIVER"
+  | "COMPLETED";
 
 export type Booking = {
   id: string;
@@ -17,6 +22,8 @@ export type Booking = {
   customerEmail: string;
   driverId: string | null;
   driverName: string | null;
+  deliveryImageUrl: string | null;
+  completedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -75,9 +82,17 @@ export function getDriverBooking(id: string) {
   return bookingFetch<Booking>(`/api/driver/bookings/${encodeURIComponent(id)}`);
 }
 
+export function completeDriverBooking(id: string, deliveryImageUrl: string) {
+  return bookingFetch<Booking>(`/api/driver/bookings/${encodeURIComponent(id)}/complete`, {
+    method: "POST",
+    body: JSON.stringify({ deliveryImageUrl }),
+  });
+}
+
 export const BOOKING_STATUS_LABEL: Record<BookingStatus, string> = {
   PENDING: "Pending",
   CONFIRMED: "Confirmed",
   CANCELLED: "Cancelled",
   READY_TO_DELIVER: "Ready to deliver",
+  COMPLETED: "Completed",
 };
