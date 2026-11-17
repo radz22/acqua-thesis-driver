@@ -3,19 +3,26 @@
 @import "tailwindcss/utilities.css";
 
 @theme {
-  --color-brand: #222222;
-  --color-accent: #7ef0ff;
-  --color-ink: #222222;
-  --color-ink-muted: #5c5c5c;
-  --color-line: #e5e5e5;
+  --color-brand: #102e50;
+  --color-surface: #ffffff;
+  --color-accent: #006bff;
+  --color-accent-press: #0054cc;
+  --color-ink: #102e50;
+  --color-ink-muted: #4a6380;
+  --color-line: #d6dee8;
   --color-danger: #b42318;
-  --color-hero: #1a1a1a;
-  --color-canvas: #f4f4f5;
+  --color-hero: #102e50;
+  --color-canvas: #ffffff;
+  --color-disabled: #a8b4c4;
+}
+
+:root {
+  caret-color: #006bff;
 }
 
 ::selection {
-  background: #7ef0ff;
-  color: #222222;
+  background: #006bff;
+  color: #ffffff;
 }
 
 @media android {

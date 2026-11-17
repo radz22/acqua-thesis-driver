@@ -1,18 +1,28 @@
 import { Platform } from "react-native";
 import { Stack } from "expo-router/stack";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { AssignedBookingsProvider } from "@/components/app/assigned-bookings-context";
 
 export default function AppLayout() {
   return (
     <AuthGuard>
-      <Stack
-        screenOptions={{
-          headerShown: Platform.OS !== "web",
-          contentStyle: { backgroundColor: Platform.OS === "web" ? "#fafafa" : "#ffffff" },
-        }}
-      >
-        <Stack.Screen name="index" options={{ title: "Home" }} />
-      </Stack>
+      <AssignedBookingsProvider>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: Platform.OS === "web" ? "#fafafa" : "#ffffff" },
+          }}
+        >
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen
+            name="order/[id]"
+            options={{
+              headerShown: Platform.OS !== "web",
+              title: "Order",
+            }}
+          />
+        </Stack>
+      </AssignedBookingsProvider>
     </AuthGuard>
   );
 }

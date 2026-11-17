@@ -31,8 +31,8 @@ export default function LoginScreen() {
         password,
         rememberMe,
       }));
-    } catch {
-      toast.error("Sign in failed. Try again.");
+    } catch (error) {
+      toast.error(authErrorMessage(error, "Can't reach the server. Try again."));
       return;
     }
 

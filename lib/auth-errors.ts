@@ -3,10 +3,31 @@ type AuthErrorLike = {
   message?: string | undefined;
 };
 
-export function authErrorMessage(error: AuthErrorLike | null | undefined, fallback: string) {
-  const code = error?.code ?? "";
-  const message = error?.message ?? "";
-  const haystack = `${code} ${message}`.toLowerCase();
+function errorHaystack(error: unknown) {
+  if (!error) return "";
+  if (typeof error === "string") return error.toLowerCase();
+  if (typeof error !== "object") return "";
+
+  const record = error as AuthErrorLike & { cause?: unknown; name?: unknown };
+  const cause =
+    record.cause && typeof record.cause === "object" && "message" in record.cause
+      ? String((record.cause as { message?: unknown }).message ?? "")
+      : "";
+
+  return `${record.name ?? ""} ${record.code ?? ""} ${record.message ?? ""} ${cause}`.toLowerCase();
+}
+
+export function authErrorMessage(error: unknown, fallback: string) {
+  const haystack = errorHaystack(error);
+
+  if (
+    haystack.includes("failed to fetch") ||
+    haystack.includes("network request failed") ||
+    haystack.includes("network error") ||
+    haystack.includes("load failed")
+  ) {
+    return "Can't reach the server. Check that the backend is running.";
+  }
 
   if (haystack.includes("email_not_verified") || haystack.includes("email not verified")) {
     return "Verify your email before signing in.";
@@ -33,7 +54,13 @@ export function authErrorMessage(error: AuthErrorLike | null | undefined, fallba
     return "Enter a valid email address.";
   }
 
-  return message.trim() || fallback;
+  if (error && typeof error === "object" && "message" in error) {
+    const message = String((error as AuthErrorLike).message ?? "").trim();
+    if (message) return message;
+  }
+  if (typeof error === "string" && error.trim()) return error.trim();
+
+  return fallback;
 }
 
 export function isEmailNotVerified(error: AuthErrorLike | null | undefined) {
