@@ -8,6 +8,12 @@ export type BookingStatus =
   | "READY_TO_DELIVER"
   | "COMPLETED";
 
+export type BookingInventoryItem = {
+  id: string;
+  name: string;
+  status: "AVAILABLE" | "RESERVED" | "ASSIGNED";
+};
+
 export type Booking = {
   id: string;
   gallons: number;
@@ -26,6 +32,7 @@ export type Booking = {
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  inventoryItems: BookingInventoryItem[];
 };
 
 export type BookingPage = {
