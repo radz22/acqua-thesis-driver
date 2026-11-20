@@ -115,6 +115,16 @@ export default function OrderDetailsScreen() {
         <Text className="mt-3 text-sm text-ink-muted">
           {booking.gallons} {booking.gallons === 1 ? "gallon" : "gallons"} · {formatPeso(booking.total)}
         </Text>
+        {booking.inventoryItems.length > 0 ? (
+          <View className="mt-3 gap-1">
+            <Text className="text-sm font-semibold text-ink">Reserved gallons</Text>
+            {booking.inventoryItems.map((item) => (
+              <Text key={item.id} className="text-sm text-ink">
+                {item.name}
+              </Text>
+            ))}
+          </View>
+        ) : null}
         <Text className="mt-2 text-sm font-semibold text-ink">
           {BOOKING_STATUS_LABEL[booking.status]}
         </Text>
