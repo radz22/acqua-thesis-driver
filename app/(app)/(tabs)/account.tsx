@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useAppSession } from "@/hooks/use-session";
 import { signOut } from "@/lib/auth-client";
 import { toast } from "@/components/ui/toast";
+import { unregisterDevicePushToken } from "@/lib/push";
 
 export default function AccountScreen() {
   const insets = useSafeAreaInsets();
@@ -12,6 +13,7 @@ export default function AccountScreen() {
   const { user } = useAppSession();
 
   async function handleSignOut() {
+    await unregisterDevicePushToken();
     const { error } = await signOut({
       fetchOptions: {
         onSuccess: () => {

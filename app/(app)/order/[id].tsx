@@ -4,6 +4,8 @@ import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Pressable, ScrollView, Text, View } from "@/src/tw";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
+import { useMessaging } from "@/components/app/messaging-context";
 import { CompleteOrderPanel } from "@/components/app/complete-order-panel";
 import { DeliveryMap } from "@/components/app/delivery-map";
 import { DeliveryProof } from "@/components/app/delivery-proof";
@@ -15,6 +17,7 @@ import {
 } from "@/lib/bookings";
 import { formatWhen } from "@/lib/format-when";
 import { formatPeso } from "@/constants/pricing";
+import { getOrCreateConversation } from "@/lib/conversations";
 import { hasValidCoordinates, navigateToStop } from "@/lib/navigation";
 
 export default function OrderDetailsScreen() {
@@ -24,6 +27,8 @@ export default function OrderDetailsScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const id = typeof params.id === "string" ? params.id : "";
   const { bookings, applyBooking } = useAssignedBookings();
+  const { applyConversation } = useMessaging();
+  const [openingChat, setOpeningChat] = useState(false);
   const cached = bookings.find((booking) => booking.id === id);
   const [booking, setBooking] = useState<Booking | null>(cached ?? null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
@@ -135,6 +140,30 @@ export default function OrderDetailsScreen() {
             onPress={() => {
               void navigateToStop(booking);
             }}
+          />
+        </View>
+        <View className="mt-3">
+          <Button
+            title={openingChat ? "Opening…" : "Message customer"}
+            disabled={openingChat}
+            onPress={() => {
+              if (openingChat) return;
+              setOpeningChat(true);
+              void getOrCreateConversation(booking.id)
+                .then((conversation) => {
+                  applyConversation(conversation);
+                  router.push(`/chat/${conversation.id}`);
+                })
+                .catch((error) => {
+                  toast.error(
+                    error instanceof Error ? error.message : "Could not open the conversation.",
+                  );
+                })
+                .finally(() => {
+                  setOpeningChat(false);
+                });
+            }}
+            variant="secondary"
           />
         </View>
         {booking.status === "READY_TO_DELIVER" ? (

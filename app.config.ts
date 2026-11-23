@@ -19,6 +19,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           "AquaBest Driver uses your location to navigate to delivery addresses.",
         NSCameraUsageDescription:
           "AquaBest Driver uses the camera to photograph the delivered water gallons.",
+        NSPhotoLibraryUsageDescription:
+          "AquaBest Driver uses your photo library so you can send images to customers.",
       },
     },
     android: {
@@ -44,6 +46,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         {
           cameraPermission:
             "AquaBest Driver uses the camera to photograph the delivered water gallons.",
+          photosPermission:
+            "AquaBest Driver uses your photo library so you can send images to customers.",
         },
       ],
       [
@@ -51,6 +55,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         {
           iosGoogleMapsApiKey: googleMapsApiKey,
           androidGoogleMapsApiKey: googleMapsApiKey,
+        },
+      ],
+      [
+        "expo-notifications",
+        {
+          sounds: [],
         },
       ],
     ],

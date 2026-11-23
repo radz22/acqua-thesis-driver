@@ -28,6 +28,7 @@ export type Booking = {
   customerEmail: string;
   driverId: string | null;
   driverName: string | null;
+  driverImage: string | null;
   deliveryImageUrl: string | null;
   completedAt: string | null;
   createdAt: string;
