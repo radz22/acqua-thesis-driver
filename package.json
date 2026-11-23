@@ -33,6 +33,7 @@
     "expo-linking": "~55.0.7",
     "expo-location": "~55.1.15",
     "expo-network": "~55.0.8",
+    "expo-notifications": "^55.0.27",
     "expo-router": "~55.0.4",
     "expo-secure-store": "~55.0.8",
     "expo-status-bar": "~55.0.4",

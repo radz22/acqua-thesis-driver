@@ -2,11 +2,15 @@ import { Platform } from "react-native";
 import { Stack } from "expo-router/stack";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { AssignedBookingsProvider } from "@/components/app/assigned-bookings-context";
+import { MessagingProvider } from "@/components/app/messaging-context";
+import { RealtimeProvider, useRealtime } from "@/components/app/realtime-context";
 
-export default function AppLayout() {
+function AuthenticatedApp() {
+  const { socket } = useRealtime();
+
   return (
-    <AuthGuard>
-      <AssignedBookingsProvider>
+    <AssignedBookingsProvider>
+      <MessagingProvider socket={socket}>
         <Stack
           screenOptions={{
             headerShown: false,
@@ -21,8 +25,25 @@ export default function AppLayout() {
               title: "Order",
             }}
           />
+          <Stack.Screen
+            name="chat/[id]"
+            options={{
+              headerShown: false,
+              title: "Chat",
+            }}
+          />
         </Stack>
-      </AssignedBookingsProvider>
+      </MessagingProvider>
+    </AssignedBookingsProvider>
+  );
+}
+
+export default function AppLayout() {
+  return (
+    <AuthGuard>
+      <RealtimeProvider>
+        <AuthenticatedApp />
+      </RealtimeProvider>
     </AuthGuard>
   );
 }

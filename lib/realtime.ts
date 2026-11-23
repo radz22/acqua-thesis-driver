@@ -2,7 +2,7 @@ import { io, type Socket } from "socket.io-client";
 import { API_URL } from "@/constants";
 import { authClient } from "@/lib/auth-client";
 
-export function connectDriverSocket(): Socket {
+export function connectAppSocket(): Socket {
   const cookie = authClient.getCookie();
   return io(API_URL, {
     transports: ["websocket", "polling"],
@@ -11,3 +11,5 @@ export function connectDriverSocket(): Socket {
     auth: cookie ? { cookie } : {},
   });
 }
+
+export const connectDriverSocket = connectAppSocket;

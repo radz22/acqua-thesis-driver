@@ -10,7 +10,7 @@ import {
 } from "react";
 import { addNetworkStateListener } from "expo-network";
 import { listDriverBookings, type Booking } from "@/lib/bookings";
-import { connectDriverSocket } from "@/lib/realtime";
+import { useRealtime } from "@/components/app/realtime-context";
 import { useAppSession } from "@/hooks/use-session";
 
 type LoadStatus = "loading" | "ready" | "error";
@@ -34,6 +34,7 @@ function upsertBooking(list: Booking[], incoming: Booking) {
 
 export function AssignedBookingsProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAppSession();
+  const { socket } = useRealtime();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [status, setStatus] = useState<LoadStatus>("loading");
   const requestId = useRef(0);
@@ -65,28 +66,34 @@ export function AssignedBookingsProvider({ children }: { children: ReactNode }) 
   }, [isAuthenticated, reload]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !socket) return;
 
-    const socket = connectDriverSocket();
-    socket.on("booking.assigned", (booking: Booking) => {
+    const onAssigned = (booking: Booking) => {
       setBookings((current) => upsertBooking(current, booking));
       setStatus("ready");
-    });
-    socket.on("booking.updated", (booking: Booking) => {
+    };
+    const onUpdated = (booking: Booking) => {
       setBookings((current) => upsertBooking(current, booking));
-    });
-    socket.on("booking.unassigned", (payload: { id: string }) => {
+    };
+    const onUnassigned = (payload: { id: string }) => {
       setBookings((current) => current.filter((booking) => booking.id !== payload.id));
-    });
-    socket.on("connect", () => {
+    };
+    const onConnect = () => {
       void reload();
-    });
+    };
+
+    socket.on("booking.assigned", onAssigned);
+    socket.on("booking.updated", onUpdated);
+    socket.on("booking.unassigned", onUnassigned);
+    socket.on("connect", onConnect);
 
     return () => {
-      socket.removeAllListeners();
-      socket.disconnect();
+      socket.off("booking.assigned", onAssigned);
+      socket.off("booking.updated", onUpdated);
+      socket.off("booking.unassigned", onUnassigned);
+      socket.off("connect", onConnect);
     };
-  }, [isAuthenticated, reload]);
+  }, [isAuthenticated, reload, socket]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
